@@ -9,9 +9,15 @@
   <style>
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; max-width: 600px; margin: 40px auto; padding: 0 20px; line-height: 1.5; }
     label { font-weight: 600; display: block; margin-top: 15px; }
-    select, input, button { width: 100%; padding: 10px; margin-top: 6px; box-sizing: border-box; font-size: 15px; }
+    select, input[type="text"], button { width: 100%; padding: 10px; margin-top: 6px; box-sizing: border-box; font-size: 15px; }
     button { background: #2563eb; color: white; border: none; border-radius: 6px; cursor: pointer; margin-top: 20px; font-weight: 600; }
     button:hover { background: #1d4ed8; }
+    
+    /* Tag pill / checkbox grid */
+    .interests-container { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+    .tag-chip { display: inline-flex; align-items: center; background: #e5e7eb; border-radius: 9999px; padding: 6px 14px; font-size: 14px; cursor: pointer; user-select: none; }
+    .tag-chip input { margin-right: 6px; cursor: pointer; }
+    
     #output { margin-top: 25px; padding: 16px; background: #f3f4f6; border-radius: 6px; min-height: 24px; font-size: 16px; }
   </style>
 </head>
@@ -30,13 +36,15 @@
     <option value="Cairo, Egypt">Cairo, Egypt</option>
   </select>
 
-  <label for="traveler-interests">Interests (comma-separated):</label>
-  <input type="text" id="traveler-interests" value="monument">
+  <label>Select Interests:</label>
+  <!-- Python populates this container automatically on page load -->
+  <div id="interests-picker" class="interests-container">
+    <span>Loading interests...</span>
+  </div>
 
-  <!-- py-click binds the click event directly to the Python function -->
   <button id="run-btn" py-click="handle_submit">Find Attractions</button>
 
-  <div id="output">Click "Find Attractions" to see recommendations.</div>
+  <div id="output">Pick your interests and click "Find Attractions".</div>
 
   <script type="py">
     from pyscript import document
@@ -51,7 +59,7 @@
         destination_index = get_destination_index(destination)
         attractions[destination_index].append(attraction)
 
-    # Database setup
+    # Database
     add_attraction("Los Angeles, USA", ["Venice Beach", ["beach"]])
     add_attraction("Paris, France", ["the Louvre", ["art", "museum"]])
     add_attraction("Paris, France", ["Arc de Triomphe", ["historical site", "monument"]])
@@ -63,6 +71,31 @@
     add_attraction("São Paulo, Brazil", ["Pátio do Colégio", ["historical site"]])
     add_attraction("Cairo, Egypt", ["Pyramids of Giza", ["monument", "historical site"]])
     add_attraction("Cairo, Egypt", ["Egyptian Museum", ["museum"]])
+
+    # Collect all unique tags across all destinations
+    def get_all_interests():
+        unique_interests = set()
+        for city_list in attractions:
+            for item in city_list:
+                for tag in item[1]:
+                    unique_interests.add(tag)
+        return sorted(list(unique_interests))
+
+    # Render checkboxes into the DOM on load
+    def render_interest_options():
+        container = document.querySelector("#interests-picker")
+        container.innerHTML = ""
+        tags = get_all_interests()
+        for tag in tags:
+            label_el = document.createElement("label")
+            label_el.className = "tag-chip"
+            
+            # Default 'monument' to checked for illustration
+            checked_attr = 'checked' if tag == "monument" else ''
+            label_el.innerHTML = f'<input type="checkbox" name="interest-tag" value="{tag}" {checked_attr}>{tag}'
+            container.appendChild(label_el)
+
+    render_interest_options()
 
     def find_attractions(destination, interests):
         destination_index = get_destination_index(destination)
@@ -85,7 +118,7 @@
         matched = find_attractions(traveler_destination, traveler_interests)
 
         if not matched:
-            return f"Hi {traveler_name}, we couldn't find any attractions in {traveler_destination} matching your interests."
+            return f"Hi {traveler_name}, we couldn't find any attractions in {traveler_destination} matching your selected interests."
 
         message = f"Hi {traveler_name}, we think you'll like these places around {traveler_destination}: "
         formatted_places = [f"the {place}" for place in matched]
@@ -95,15 +128,17 @@
     def handle_submit(event):
         name = document.querySelector("#traveler-name").value.strip()
         destination = document.querySelector("#traveler-destination").value
-        interests_raw = document.querySelector("#interests").value if document.querySelector("#interests") else document.querySelector("#traveler-interests").value
+        
+        # Read all checked interest checkboxes
+        checked_boxes = document.querySelectorAll("input[name='interest-tag']:checked")
+        selected_interests = [box.value for box in checked_boxes]
 
-        # Parse comma-separated interests
-        interests = [item.strip().lower() for item in interests_raw.split(",") if item.strip()]
+        if not selected_interests:
+            document.querySelector("#output").innerText = f"Hi {name}, please select at least one interest."
+            return
 
-        traveler = [name, destination, interests]
+        traveler = [name, destination, selected_interests]
         result_text = get_attractions_for_traveler(traveler)
-
-        # Update DOM directly from Python
         document.querySelector("#output").innerText = result_text
   </script>
 </body>
