@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Python in Browser</title>
+  <link rel="stylesheet" href="https://pyscript.net/releases/2024.1.1/core.css">
+  <script type="module" src="https://pyscript.net/releases/2024.1.1/core.js"></script>
+</head>
+<body style="font-family: sans-serif; padding: 2rem;">
+  <h2>Recommendation Output</h2>
+  <div id="output" style="font-weight: bold; background: #f0f0f0; padding: 15px;"></div>
+
+  <script type="py">
+    from pyscript import display
+
+    destinations = ["Paris, France", "Shanghai, China", "Los Angeles, USA", "São Paulo, Brazil", "Cairo, Egypt"]
+    attractions = [[] for _ in destinations]
+
+    def get_destination_index(destination):
+        return destinations.index(destination)
+
+    def add_attraction(destination, attraction):
+        attractions[get_destination_index(destination)].append(attraction)
+
+    add_attraction("Paris, France", ["the Louvre", ["art", "museum"]])
+    add_attraction("Paris, France", ["Arc de Triomphe", ["historical site", "monument"]])
+
+    def find_attractions(destination, interests):
+        idx = get_destination_index(destination)
+        results = []
+        for name, tags in attractions[idx]:
+            for item in interests:
+                if item in tags:
+                    results.append(name)
+        return results
+
+    def get_attractions_for_traveler(traveler):
+        places = find_attractions(traveler[1], traveler[2])
+        return f"Hi {traveler[0]}, we think you'll like these places around {traveler[1]}: the " + ", the ".join(places) + "."
+
+    message = get_attractions_for_traveler(['Dereck Smill', 'Paris, France', ['monument']])
+    display(message, target="output")
+  </script>
+</body>
+</html>
