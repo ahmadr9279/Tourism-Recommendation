@@ -2,16 +2,44 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Python in Browser</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Interactive Travel Recommender (PyScript)</title>
   <link rel="stylesheet" href="https://pyscript.net/releases/2024.1.1/core.css">
   <script type="module" src="https://pyscript.net/releases/2024.1.1/core.js"></script>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; max-width: 600px; margin: 40px auto; padding: 0 20px; line-height: 1.5; }
+    label { font-weight: 600; display: block; margin-top: 15px; }
+    select, input, button { width: 100%; padding: 10px; margin-top: 6px; box-sizing: border-box; font-size: 15px; }
+    button { background: #2563eb; color: white; border: none; border-radius: 6px; cursor: pointer; margin-top: 20px; font-weight: 600; }
+    button:hover { background: #1d4ed8; }
+    #output { margin-top: 25px; padding: 16px; background: #f3f4f6; border-radius: 6px; min-height: 24px; font-size: 16px; }
+  </style>
 </head>
-<body style="font-family: sans-serif; padding: 2rem;">
-  <h2>Recommendation Output</h2>
-  <div id="output" style="font-weight: bold; background: #f0f0f0; padding: 15px;"></div>
+<body>
+  <h2>The Boredless Tourist Recommender</h2>
+
+  <label for="traveler-name">Traveler Name:</label>
+  <input type="text" id="traveler-name" value="Dereck Smill">
+
+  <label for="traveler-destination">Destination:</label>
+  <select id="traveler-destination">
+    <option value="Paris, France">Paris, France</option>
+    <option value="Shanghai, China">Shanghai, China</option>
+    <option value="Los Angeles, USA">Los Angeles, USA</option>
+    <option value="São Paulo, Brazil">São Paulo, Brazil</option>
+    <option value="Cairo, Egypt">Cairo, Egypt</option>
+  </select>
+
+  <label for="traveler-interests">Interests (comma-separated):</label>
+  <input type="text" id="traveler-interests" value="monument">
+
+  <!-- py-click binds the click event directly to the Python function -->
+  <button id="run-btn" py-click="handle_submit">Find Attractions</button>
+
+  <div id="output">Click "Find Attractions" to see recommendations.</div>
 
   <script type="py">
-    from pyscript import display
+    from pyscript import document
 
     destinations = ["Paris, France", "Shanghai, China", "Los Angeles, USA", "São Paulo, Brazil", "Cairo, Egypt"]
     attractions = [[] for _ in destinations]
@@ -20,26 +48,63 @@
         return destinations.index(destination)
 
     def add_attraction(destination, attraction):
-        attractions[get_destination_index(destination)].append(attraction)
+        destination_index = get_destination_index(destination)
+        attractions[destination_index].append(attraction)
 
+    # Database setup
+    add_attraction("Los Angeles, USA", ["Venice Beach", ["beach"]])
     add_attraction("Paris, France", ["the Louvre", ["art", "museum"]])
     add_attraction("Paris, France", ["Arc de Triomphe", ["historical site", "monument"]])
+    add_attraction("Shanghai, China", ["Yu Garden", ["garden", "historical site"]])
+    add_attraction("Shanghai, China", ["Yuz Museum", ["art", "museum"]])
+    add_attraction("Shanghai, China", ["Oriental Pearl Tower", ["skyscraper", "viewing deck"]])
+    add_attraction("Los Angeles, USA", ["LACMA", ["art", "museum"]])
+    add_attraction("São Paulo, Brazil", ["São Paulo Zoo", ["zoo"]])
+    add_attraction("São Paulo, Brazil", ["Pátio do Colégio", ["historical site"]])
+    add_attraction("Cairo, Egypt", ["Pyramids of Giza", ["monument", "historical site"]])
+    add_attraction("Cairo, Egypt", ["Egyptian Museum", ["museum"]])
 
     def find_attractions(destination, interests):
-        idx = get_destination_index(destination)
-        results = []
-        for name, tags in attractions[idx]:
-            for item in interests:
-                if item in tags:
-                    results.append(name)
-        return results
+        destination_index = get_destination_index(destination)
+        attractions_in_city = attractions[destination_index]
+        attractions_with_interest = []
+
+        for attraction in attractions_in_city:
+            attraction_tags = attraction[1]
+            for interest in interests:
+                if interest in attraction_tags and attraction[0] not in attractions_with_interest:
+                    attractions_with_interest.append(attraction[0])
+
+        return attractions_with_interest
 
     def get_attractions_for_traveler(traveler):
-        places = find_attractions(traveler[1], traveler[2])
-        return f"Hi {traveler[0]}, we think you'll like these places around {traveler[1]}: the " + ", the ".join(places) + "."
+        traveler_name = traveler[0]
+        traveler_destination = traveler[1]
+        traveler_interests = traveler[2]
 
-    message = get_attractions_for_traveler(['Dereck Smill', 'Paris, France', ['monument']])
-    display(message, target="output")
+        matched = find_attractions(traveler_destination, traveler_interests)
+
+        if not matched:
+            return f"Hi {traveler_name}, we couldn't find any attractions in {traveler_destination} matching your interests."
+
+        message = f"Hi {traveler_name}, we think you'll like these places around {traveler_destination}: "
+        formatted_places = [f"the {place}" for place in matched]
+        message += ", ".join(formatted_places) + "."
+        return message
+
+    def handle_submit(event):
+        name = document.querySelector("#traveler-name").value.strip()
+        destination = document.querySelector("#traveler-destination").value
+        interests_raw = document.querySelector("#interests").value if document.querySelector("#interests") else document.querySelector("#traveler-interests").value
+
+        # Parse comma-separated interests
+        interests = [item.strip().lower() for item in interests_raw.split(",") if item.strip()]
+
+        traveler = [name, destination, interests]
+        result_text = get_attractions_for_traveler(traveler)
+
+        # Update DOM directly from Python
+        document.querySelector("#output").innerText = result_text
   </script>
 </body>
 </html>
